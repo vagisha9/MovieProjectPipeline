@@ -1,0 +1,95 @@
+name: Movie Picture Frontend Continuous Integration
+
+# Triggers for the workflow
+on:
+  # Manual trigger using the workflow_dispatch event
+  workflow_dispatch:
+      
+  # Automatic trigger on pull request events targeting the main branch
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the code from the repository.
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-	
+
+      - run: cd starter/frontend && npm install
+
+      # Run the linter.
+      - run: cd starter/frontend && npm run lint
+
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the code from the repository.
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-	
+
+      - run: cd starter/frontend && npm install
+
+      # Run the tests
+      - run: cd starter/frontend/src/components/__tests__ && npm test
+
+  build:
+  #job should only run after the first 2 succeed
+    runs-on: ubuntu-latest
+    env:
+      REACT_APP_MOVIE_API_URL: http://localhost:5000
+    needs: [lint, test]
+
+    steps:
+      # Check out the code from the repository.
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-	
+
+      - run: cd starter/frontend && npm install
+
+      - run: cd starter/frontend/src/components/__tests__ && npm test
+
+      - run: |
+          cd starter/frontend
+          docker build --build-arg REACT_APP_MOVIE_API_URL=${{ env.REACT_APP_MOVIE_API_URL }} --tag=mp-frontend:latest .
+          docker run --name mp-frontend -p 3000:3000 -d mp-frontend
+      
